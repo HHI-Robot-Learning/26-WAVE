@@ -1,0 +1,15 @@
+# Three-axis prismatic carriage with a parallel-jaw gripper, 10 cm cubes.
+tau_step: 0.05
+tau_sim: 0.002
+action_scale: 2.0
+friction: "2.0 0.5 0.2"
+solref: "0.02 1"
+solimp: "0.9 0.95 0.001 0.5 2"
+impratio: 1.0
+box_box_primitive: true
+contacts_per_object: 32
+grip_binary: true
+grip_hysteresis: 0.3
+grip_closed_at_upper: true
+ctrl_antiwindup: true
+grasp_ee_point: null

@@ -1,0 +1,41 @@
+embodiment: panda_pusher
+scene: panda_push
+eps_pos: 0.0125
+vel_scale: 0.05
+referr_scale: 20.0
+td7:
+  timesteps_before_training: 25000
+  warm_min_ticks: 4800
+  warm_restore_value_range: true
+  anchor_lambda: 0.0
+  anchor_decay_steps: 0
+  anchor_lambda_min: 0.0
+  training_steps: 1
+  learning_rate: 0.001
+  batch_size: 10000
+  buffer_size: 12000000
+  discount: 0.95
+  target_update_rate: 250
+  exploration_noise: 0.05
+  expl_noise_final: null
+  expl_noise_anneal_start: 0
+  expl_noise_anneal_end: 0
+  value_clip:
+  - 0.0
+  - 2.0
+  target_policy_noise: 0.05
+  noise_clip: 0.1
+  policy_freq: 2
+  grad_clip: 10.0
+  actor_lr: 0.0003
+  caps_temporal: 0.06
+  caps_spatial: 0.03
+  caps_sigma: 0.05
+  caps_warmup_start: 0
+  caps_warmup_end: 0
+  alpha: 0.4
+  min_priority: 1
+  zs_dim: 256
+  enc_hdim: 256
+  critic_hdim: 256
+  actor_hdim: 256

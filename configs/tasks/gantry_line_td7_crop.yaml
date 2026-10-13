@@ -1,0 +1,8 @@
+# Baseline: a TD7 actor trained from scratch on WAVE's crop and decision clock, with no
+# frozen skill. Evaluated on 1-10 cubes.
+base: gantry_line
+algorithm: td7_crop
+train:
+  budget: 100_000_000
+eval:
+  stop: 10

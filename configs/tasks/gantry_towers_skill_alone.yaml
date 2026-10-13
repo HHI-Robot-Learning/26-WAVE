@@ -1,0 +1,5 @@
+# Baseline: the frozen skill alone, working the nearest unsatisfied object (no training).
+base: gantry_towers_baseline
+algorithm: skill_alone
+train:
+  enabled: false

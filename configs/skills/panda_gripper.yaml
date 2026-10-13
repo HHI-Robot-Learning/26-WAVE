@@ -1,0 +1,60 @@
+# The Panda's cube skill (parallel-jaw hand): the last stage of the recipe that produced
+# skills/panda_gripper.torch (that stage was warm-started; init_from=<skill.torch> repeats it).
+embodiment: panda_gripper
+scene: panda_cube_single
+num_scenes: 1024
+T_end: 800000
+discount_half_life: 2.0
+eval_time_limit: 60.0
+plant:
+  tau_step: 0.05
+  tau_sim: 0.001
+  action_scale: 0.25
+  friction: "2.0 0.5 0.2"
+  solref: "0.02 1"
+  solimp: "0.9 0.95 0.001 0.5 2"
+  impratio: 1.0
+  box_box_primitive: true
+  contacts_per_object: 96
+  grip_binary: true
+  grip_hysteresis: 0.3
+  grip_closed_at_upper: false
+  ctrl_antiwindup: true
+  grasp_ee_point: panda_hand_tip
+reward:
+  eps_pos: 0.0125
+  ori_weight: 0.3
+  pos_scale: 4.0
+  pos_reach: 0.5
+  ori_scale: 4.0
+  ori_reach: 0.125
+  combined_scale: 8.0
+  combined_reach: 0.0125
+  reach_scale: 2.0
+  reach_len: 0.6
+  pregrasp_scale: 1.0
+  grasp: 0.003
+  release: 0.25
+  grasp_rest_z: 0.02
+  grasp_lift_scale: 0.0125
+  grasp_reach_sigma: 0.05
+curriculum:
+  mode: direct
+  goals: data/sop_pools/panda_gripper_goals.h5
+  starts: data/sop_pools/panda_gripper_starts.h5
+  nominal_time_limit: 30.0
+td7:
+  learning_rate: 0.001
+  actor_lr: 0.0003
+  batch_size: 10000
+  buffer_size: 12000000
+  exploration_noise: 0.05
+  value_clip: [0.0, 2.0]
+  target_policy_noise: 0.05
+  noise_clip: 0.1
+  grad_clip: 10.0
+  anchor_lambda: 2.0
+  anchor_decay_steps: 2000000
+  warm_min_ticks: 4800
+  zs_dim: 512
+  enc_hdim: 512

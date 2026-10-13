@@ -1,0 +1,9 @@
+# Gantry, walls 4 cubes wide that grow upward; WAVE trained on 1-8 cubes.
+base: gantry_towers
+goal:
+  type: wall
+  wall_width: 4
+  wall_height: 0
+train:
+  n_train_max: 8
+  budget: 786_432_000

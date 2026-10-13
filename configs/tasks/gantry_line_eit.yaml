@@ -1,0 +1,4 @@
+# Baseline: an entity-interaction transformer trained end to end (TD3).
+base: gantry_line_baseline
+algorithm: eit
+skill: null

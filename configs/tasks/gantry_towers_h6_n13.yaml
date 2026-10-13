@@ -1,0 +1,13 @@
+# Gantry, towers of 6 cubes: the 1-7 head of the same seed fine-tuned on 1-13 cubes.
+# `budget` is the total step count including the 1-7 run the head starts from. Evaluated at
+# 40 s per cube, with the selector's decision period held at the 1.0 s it trained with
+# (0.025 x 40 s).
+base: gantry_towers_h6
+train:
+  n_train_max: 13
+  budget: 1_000_341_562
+  init_from: data/heads/gantry_towers_h6_seed${train.seed}.pt
+eval:
+  time_per_object: 40.0
+  algorithm_overrides:
+    selector_decide_fraction: 0.025

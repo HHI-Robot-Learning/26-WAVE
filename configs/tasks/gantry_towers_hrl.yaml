@@ -1,0 +1,3 @@
+# Baseline: a TD7 manager over the crop sets subgoals for the frozen skill.
+base: gantry_towers_baseline
+algorithm: hrl

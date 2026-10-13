@@ -1,0 +1,6 @@
+# Panda pusher, cubes pushed into 3x3 squares; WAVE trained on 1-9 cubes, evaluated on 1-30.
+base: push_line
+goal:
+  shape_pattern: square
+eval:
+  stop: 30

@@ -1,0 +1,92 @@
+{
+ "kind": "multi",
+ "robot": "gantry_gripper",
+ "robot_joints": [
+  "joint1",
+  "joint2",
+  "carriage",
+  "wristX",
+  "wristY",
+  "wristZ",
+  "gripL",
+  "gripR"
+ ],
+ "robot_limits": [
+  [
+   -3.0,
+   -3.0,
+   -0.45,
+   -3.2,
+   -3.2,
+   -3.2,
+   -0.18,
+   0.085
+  ],
+  [
+   3.0,
+   3.0,
+   2.6,
+   3.2,
+   3.2,
+   3.2,
+   -0.085,
+   0.18
+  ]
+ ],
+ "robot_home": [
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  -0.18,
+  0.18
+ ],
+ "object_limits": [
+  [
+   -2.65,
+   -2.65,
+   0.0,
+   -1.1,
+   -1.1,
+   -1.1,
+   -1.1
+  ],
+  [
+   2.65,
+   2.65,
+   3.0,
+   1.1,
+   1.1,
+   1.1,
+   1.1
+  ]
+ ],
+ "object": {
+  "kind": "box",
+  "half_extent": 0.08,
+  "half_xy": [
+   0.08,
+   0.08
+  ],
+  "half_z": 0.08,
+  "rest_z": 0.23000000000000004
+ },
+ "support_frames": [
+  "floor"
+ ],
+ "support_top": 0.15000000000000002,
+ "static_frames": [
+  "wall_xp",
+  "wall_xn",
+  "wall_yp",
+  "wall_yn",
+  "wall_cage_xp",
+  "wall_cage_xn",
+  "wall_cage_yp",
+  "wall_cage_yn"
+ ],
+ "sample_sdv": {},
+ "carriage_ceiling": 0.6
+}

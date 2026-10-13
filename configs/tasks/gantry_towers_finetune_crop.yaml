@@ -1,0 +1,10 @@
+# Baseline: the skill itself fine-tuned on the scene reward through extra crop inputs (zero
+# at the start, so step 0 is the skill), critic warmed up for 10M steps with the actor frozen.
+# algorithm_cfg.anchor_alpha weighs a pull toward the frozen skill's action. Evaluated on
+# 1-10 cubes.
+base: gantry_towers
+algorithm: finetune_crop
+train:
+  budget: 100_000_000
+eval:
+  stop: 10

@@ -1,0 +1,54 @@
+# The Panda's cube-pushing skill (a ball on a rod): the last stage of the recipe that produced
+# skills/panda_pusher.torch (that stage was warm-started; init_from=<skill.torch> repeats it).
+embodiment: panda_pusher
+scene: panda_push
+num_scenes: 1024
+T_end: 250000
+discount_half_life: 2.0
+eval_time_limit: 60.0
+plant:
+  tau_step: 0.05
+  tau_sim: 0.001
+  action_scale: 1.0
+  friction: "0.4 0.05 0.001"
+  solref: "0.02 1"
+  solimp: "0.9 0.95 0.001 0.5 2"
+  impratio: 1.0
+  box_box_primitive: true
+  contacts_per_object: 96
+  grip_binary: false
+  grip_hysteresis: 0.0
+  grip_closed_at_upper: true
+  ctrl_antiwindup: true
+  grasp_ee_point: fing
+reward:
+  eps_pos: 0.0125
+  ori_weight: 1.0
+  yaw_symmetry: 4
+  pos_scale: 4.0
+  pos_reach: 0.5
+  ori_scale: 4.0
+  ori_reach: 0.09
+  ori_gate: 0.05
+  combined_scale: 8.0
+  combined_reach: 0.0125
+  reach_scale: 2.0
+  reach_len: 0.6
+  grasp_rest_z: 0.17
+curriculum:
+  mode: direct
+  goals: data/sop_pools/panda_pusher.h5
+  nominal_time_limit: 30.0
+td7:
+  learning_rate: 0.001
+  actor_lr: 0.0003
+  batch_size: 10000
+  buffer_size: 12000000
+  exploration_noise: 0.05
+  value_clip: [0.0, 2.0]
+  target_policy_noise: 0.05
+  noise_clip: 0.1
+  grad_clip: 10.0
+  caps_temporal: 0.06
+  caps_spatial: 0.03
+  warm_min_ticks: 4800

@@ -1,0 +1,3 @@
+# Baseline: the skill itself fine-tuned on the multi-object task, scripted object selection.
+base: gantry_line_baseline
+algorithm: finetune

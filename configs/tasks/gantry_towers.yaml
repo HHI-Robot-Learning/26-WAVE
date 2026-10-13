@@ -1,0 +1,25 @@
+# Gantry, towers of 3 cubes; WAVE trained on 1-7 cubes, evaluated on 1-30.
+scene: gripper_cube_stack_wide_heavy_gantry
+plant: gantry
+algorithm: wave
+skill: skills/gantry_gripper.torch
+goal:
+  type: towers
+  tower_height: 3
+  stack_dz: 0.17
+  eps_pos: 0.07
+  success_mode: simultaneous
+train:
+  enabled: true
+  n_train_max: 7
+  num_scenes: 2048
+  budget: 500_000_000
+  time_per_object: 20.0
+  remove_on_completion: false
+  video: true
+  video_episodes: 2
+eval:
+  start: 1
+  stop: 30
+  time_per_object: 20.0
+  n_episodes: 20

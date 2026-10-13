@@ -1,0 +1,26 @@
+# Panda pusher, cubes pushed into a line; WAVE trained on 1-9 cubes, evaluated on 1-20.
+scene: panda_push
+plant: panda_pusher
+algorithm: wave
+skill: skills/panda_pusher.torch
+goal:
+  type: shape
+  shape_pattern: line
+  shape_cols: 3
+  stack_dz: 0.0425
+  eps_pos: 0.0125
+  success_mode: simultaneous
+train:
+  enabled: true
+  n_train_max: 9
+  num_scenes: 2048
+  budget: 786_432_000
+  time_per_object: 30.0
+  remove_on_completion: false
+  video: true
+  video_episodes: 2
+eval:
+  start: 1
+  stop: 20
+  time_per_object: 30.0
+  n_episodes: 20

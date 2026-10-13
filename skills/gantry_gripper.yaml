@@ -1,0 +1,40 @@
+embodiment: gantry_gripper
+scene: gripper_cube_single_heavy_gantry
+eps_pos: 0.05
+vel_scale: 0.05
+referr_scale: 20.0
+td7:
+  timesteps_before_training: 25000
+  warm_min_ticks: 0
+  warm_restore_value_range: true
+  anchor_lambda: 2.0
+  anchor_decay_steps: 120000
+  training_steps: 1
+  learning_rate: 0.001
+  batch_size: 10000
+  buffer_size: 2000000
+  discount: 0.95
+  target_update_rate: 250
+  exploration_noise: 0.05
+  expl_noise_final: 0.015
+  expl_noise_anneal_start: 25000
+  expl_noise_anneal_end: 60000
+  value_clip:
+  - 0.0
+  - 2.0
+  target_policy_noise: 0.05
+  noise_clip: 0.1
+  policy_freq: 2
+  grad_clip: 10.0
+  actor_lr: null
+  caps_temporal: 0.06
+  caps_spatial: 0.03
+  caps_sigma: 0.05
+  caps_warmup_start: 0
+  caps_warmup_end: 0
+  alpha: 0.4
+  min_priority: 1
+  zs_dim: 256
+  enc_hdim: 256
+  critic_hdim: 256
+  actor_hdim: 256

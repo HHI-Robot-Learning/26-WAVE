@@ -1,0 +1,8 @@
+# Gantry, cubes filling 3x3 squares; WAVE trained on 1-9 cubes.
+base: gantry_towers
+goal:
+  type: shape
+  shape_pattern: square
+  shape_cols: 3
+train:
+  n_train_max: 9

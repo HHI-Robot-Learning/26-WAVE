@@ -1,0 +1,104 @@
+<mujoco model="ry_convert">
+  <compiler autolimits="false" />
+  <size memory="200M" />
+  <asset />
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.8 0.8 0.8" specular="0.1 0.1 0.1" />
+    <map znear="0.01" />
+    <global offwidth="1200" offheight="800" />
+  </visual>
+  <default>
+    <default class="ryjoint">
+      <position kp="1000" kv="10" />
+    </default>
+    <default class="geom_contact">
+      <geom friction="0.8 0.1 0.1" solref="0.02 1" solimp="0.9 0.95 0.001 0.5 2" />
+    </default>
+  </default>
+  <actuator>
+    <position name="joint1" joint="joint1" class="ryjoint" kv="116" />
+    <position name="joint2" joint="joint2" class="ryjoint" kv="116" />
+    <position name="carriage" joint="carriage" class="ryjoint" kv="116" />
+    <position name="wristX" joint="wristX" class="ryjoint" kp="30" kv="3" />
+    <position name="wristY" joint="wristY" class="ryjoint" kp="30" kv="3" />
+    <position name="wristZ" joint="wristZ" class="ryjoint" kp="30" kv="3" />
+    <position name="gripL" joint="gripL" class="ryjoint" ctrllimited="true" ctrlrange="-.18 -.085" />
+  </actuator>
+  <equality>
+    <joint joint1="gripR" joint2="gripL" polycoef="0 -1.0 0 0 0" />
+  </equality>
+  <worldbody>
+    <body name="base" pos="0.0 0.0 0.5">
+      <body name="fake">
+        <body name="joint1">
+          <joint name="joint1" damping="0.1" type="slide" axis="1 0 0" armature="3" />
+          <inertial pos="0 0 0" mass="0.01" diaginertia="1e-5 1e-5 1e-5" />
+          <body name="joint2">
+            <joint name="joint2" damping="0.1" type="slide" axis="0 1 0" armature="3" />
+            <inertial pos="0 0 0" mass="0.01" diaginertia="1e-5 1e-5 1e-5" />
+            <body name="carriage">
+              <joint name="carriage" damping="0.1" type="slide" axis="0 0 1" armature="3" />
+              <inertial pos="0 0 0" mass="0.05" diaginertia="1e-5 1e-5 1e-5" />
+              <body name="wristX">
+                <joint name="wristX" damping="1." type="hinge" axis="1 0 0" armature="0.005" />
+                <inertial pos="0 0 0" mass="0.02" diaginertia="1e-5 1e-5 1e-5" />
+                <body name="wristY">
+                  <joint name="wristY" damping="1." type="hinge" axis="0 1 0" armature="0.005" />
+                  <inertial pos="0 0 0" mass="0.02" diaginertia="1e-5 1e-5 1e-5" />
+                  <body name="wristZ">
+                    <joint name="wristZ" damping="1." type="hinge" axis="0 0 1" armature="0.005" />
+                    <inertial pos="0 0 0" mass="0.05" diaginertia="1e-5 1e-5 1e-5" />
+                    <body name="gripL">
+                      <joint name="gripL" damping="3" type="slide" axis="0 1 0" />
+                      <geom type="box" size="0.06 0.01 0.09" rgba="0.0 1.0 1.0 1" mass="0.05" class="geom_contact" contype="3" conaffinity="3" />
+                    </body>
+                    <body name="gripR">
+                      <joint name="gripR" damping="3" type="slide" axis="0 1 0" />
+                      <geom type="box" size="0.06 0.01 0.09" rgba="0.0 1.0 1.0 1" mass="0.05" class="geom_contact" contype="3" conaffinity="3" />
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="floor" pos="0.0 0.0 0.1">
+      <geom type="box" size="2.0 2.0 0.05" rgba="0.45 0.35 0.25 1" class="geom_contact" />
+    </body>
+    <body name="wall_xp" pos="1.53 0.0 0.32">
+      <geom type="box" size="0.03 1.56 0.15" rgba="0.55 0.45 0.35 0.35" class="geom_contact" />
+    </body>
+    <body name="wall_xn" pos="-1.53 0.0 0.32">
+      <geom type="box" size="0.03 1.56 0.15" rgba="0.55 0.45 0.35 0.35" class="geom_contact" />
+    </body>
+    <body name="wall_yp" pos="0.0 1.53 0.32">
+      <geom type="box" size="1.49 0.03 0.15" rgba="0.55 0.45 0.35 0.35" class="geom_contact" />
+    </body>
+    <body name="wall_yn" pos="0.0 -1.53 0.32">
+      <geom type="box" size="1.49 0.03 0.15" rgba="0.55 0.45 0.35 0.35" class="geom_contact" />
+    </body>
+    <body name="wall_cage_xp" pos="1.8 0.0 1.585">
+      <geom type="box" size="0.1 1.8 1.415" rgba="0.0 0.0 0.0 0.0" class="geom_contact" contype="2" conaffinity="2" />
+    </body>
+    <body name="wall_cage_xn" pos="-1.8 0.0 1.585">
+      <geom type="box" size="0.1 1.8 1.415" rgba="0.0 0.0 0.0 0.0" class="geom_contact" contype="2" conaffinity="2" />
+    </body>
+    <body name="wall_cage_yp" pos="0.0 1.8 1.585">
+      <geom type="box" size="1.7 0.1 1.415" rgba="0.0 0.0 0.0 0.0" class="geom_contact" contype="2" conaffinity="2" />
+    </body>
+    <body name="wall_cage_yn" pos="0.0 -1.8 1.585">
+      <geom type="box" size="1.7 0.1 1.415" rgba="0.0 0.0 0.0 0.0" class="geom_contact" contype="2" conaffinity="2" />
+    </body>
+    <body name="obj_base">
+      <body name="obj_0_goal" />
+    </body>
+    <body name="obj_0">
+      <freejoint />
+      <geom type="box" size="0.08 0.08 0.08" rgba="0.9 0.14 0.14 1" mass="0.2" class="geom_contact" contype="3" conaffinity="3" condim="4" />
+    </body>
+    <body name="camera_init" pos="0.0 -5.1 4.0" quat="-0.49106826323321384 0.8711210942487358 0.0 0.0" />
+    <camera name="cam0" pos="0.0 -5.1 4.0" quat="0.871121 0.491068 0 0" fovy="67.38" resolution="800 800" />
+  </worldbody>
+</mujoco>

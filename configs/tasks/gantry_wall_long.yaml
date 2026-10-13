@@ -1,0 +1,5 @@
+# Gantry, one wall 2 cubes high that grows longer. Evaluated with the gantry_wall heads.
+base: gantry_wall
+goal:
+  wall_width: 0
+  wall_height: 2

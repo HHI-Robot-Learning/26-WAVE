@@ -1,0 +1,3 @@
+# Baseline: Jump-Start RL with the skill as the guide policy.
+base: gantry_towers_baseline
+algorithm: jsrl

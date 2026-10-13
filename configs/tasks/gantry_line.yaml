@@ -1,0 +1,9 @@
+# Gantry, cubes in a line in the wide arena; WAVE trained on 1-6 cubes.
+base: gantry_towers
+scene: gripper_cube_stack_wide30_heavy_gantry
+goal:
+  type: shape
+  shape_pattern: line
+  shape_cols: 3
+train:
+  n_train_max: 6

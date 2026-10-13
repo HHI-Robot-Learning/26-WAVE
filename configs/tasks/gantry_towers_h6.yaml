@@ -1,0 +1,4 @@
+# Gantry, towers of 6 cubes; WAVE trained on 1-7 cubes.
+base: gantry_towers
+goal:
+  tower_height: 6

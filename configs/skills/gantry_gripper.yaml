@@ -1,0 +1,62 @@
+# The gantry's cube skill: the last stage of the recipe that produced skills/gantry_gripper.torch
+# (that stage was warm-started; init_from=<skill.torch> repeats it from a given policy).
+embodiment: gantry_gripper
+scene: gripper_cube_single_heavy_gantry
+num_scenes: 80
+T_end: 180000
+discount_half_life: 2.0
+eval_time_limit: 188.0
+plant:
+  tau_step: 0.05
+  tau_sim: 0.001
+  action_scale: 2.0
+  friction: "2.0 0.5 0.2"
+  solref: "0.02 1"
+  solimp: "0.9 0.95 0.001 0.5 2"
+  impratio: 1.0
+  box_box_primitive: false
+  contacts_per_object: 96
+  grip_binary: true
+  grip_hysteresis: 0.3
+  grip_closed_at_upper: true
+  ctrl_antiwindup: true
+  grasp_ee_point: null
+reward:
+  eps_pos: 0.05
+  ori_weight: 0.3
+  pos_scale: 4.0
+  pos_reach: 1.0
+  ori_scale: 4.0
+  ori_reach: 0.5
+  combined_scale: 8.0
+  combined_reach: 0.2
+  grasp: 0.003
+  release: 0.25
+  grasp_rest_z: 0.23
+  grasp_lift_scale: 0.05
+  grasp_reach_sigma: 0.06
+curriculum:
+  mode: interpG
+  goals: data/sop_pools/gantry_gripper_held.h5
+  T_curr: 60000
+  T_block: 5000
+  nominal_time_limit: 94.0
+  embedding:
+    supports: [gripL, gripR]
+td7:
+  learning_rate: 0.001
+  batch_size: 10000
+  buffer_size: 2000000
+  exploration_noise: 0.05
+  expl_noise_final: 0.015
+  expl_noise_anneal_start: 25000
+  expl_noise_anneal_end: 60000
+  value_clip: [0.0, 2.0]
+  target_policy_noise: 0.05
+  noise_clip: 0.1
+  grad_clip: 10.0
+  caps_temporal: 0.06
+  caps_spatial: 0.03
+  anchor_lambda: 2.0
+  anchor_decay_steps: 120000
+  warm_min_ticks: 0

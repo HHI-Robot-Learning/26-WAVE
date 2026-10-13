@@ -1,0 +1,8 @@
+# Gantry, one pyramid that grows with the cube count; WAVE trained on 1-10 cubes.
+base: gantry_towers
+goal:
+  type: pyramid
+  pyramid_base: 0
+train:
+  n_train_max: 10
+  budget: 786_432_000

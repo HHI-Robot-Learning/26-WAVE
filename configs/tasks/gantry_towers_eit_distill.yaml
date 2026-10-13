@@ -1,0 +1,4 @@
+# Baseline: the EIT, its actor first distilled from the frozen skill.
+base: gantry_towers_eit
+algorithm_cfg:
+  distill_teacher: skills/gantry_gripper.torch

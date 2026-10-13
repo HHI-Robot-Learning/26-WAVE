@@ -1,0 +1,44 @@
+[project]
+name = "wave-rl"
+version = "1.0.0"
+description = "WAVE: warping a frozen single-object skill to many objects"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "HHI Robot Learning" }]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "torch==2.11.0",
+    "mujoco==3.6.0",
+    "mujoco-warp==3.6.0",
+    "warp-lang==1.12.1",
+    "numpy==2.4.4",
+    "scipy==1.17.1",
+    "h5py==3.16.0",
+    "omegaconf==2.3.0",
+    "wandb==0.27.0",
+    "matplotlib==3.10.8",
+    "pillow==12.2.0",
+]
+
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "wave_rl"
+module-root = ""
+
+# The CUDA-12.6 build of torch 2.11 runs on Volta (V100) and newer; the PyPI build is CUDA 13.
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["F", "E9"]

@@ -1,0 +1,8 @@
+# The baselines' common setting on gantry_towers: 100M steps at 30 s per cube.
+base: gantry_towers
+train:
+  budget: 100_000_000
+  checkpoint_freq: 10_000_000
+  time_per_object: 30.0
+eval:
+  time_per_object: 30.0

@@ -1,0 +1,7 @@
+# Gantry, pyramids with a base of 3; WAVE trained on 1-6 cubes.
+base: gantry_towers
+goal:
+  type: pyramid
+  pyramid_base: 3
+train:
+  n_train_max: 6
