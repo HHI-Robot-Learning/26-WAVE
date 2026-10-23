@@ -137,6 +137,10 @@ class PlantConfig:
     grip_closed_at_upper: bool           # the jaw's closed stop is its upper ctrl limit
     ctrl_antiwindup: bool                # clamp the reference to the joint limits
     grasp_ee_point: str | None           # body published as the end effector; None = carriage
+    #: bodies whose single box geom is the arm's collision proxy, published so the crop can
+    #: measure how close each object stands to the arm. Empty on a robot with no arm links
+    #: at object height (the gantry).
+    arm_proxies: list[str] = field(default_factory=list)
 
 
 @dataclass

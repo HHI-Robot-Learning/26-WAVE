@@ -28,6 +28,12 @@ class BatchedObservation:
     satisfied_mask: torch.Tensor    # (B, N) bool      object's goal currently satisfied
     ee_pos: torch.Tensor | None = None
     ee_vel: torch.Tensor | None = None
+    #: the plant's `arm_proxies` boxes, K of them: centres (B, K, 3) in the `obj_feat` frame,
+    #: orientations (B, K, 3, 3) whose columns are the box axes, half sizes (K, 3). None on a
+    #: plant that names no proxies.
+    arm_box_pos: torch.Tensor | None = None
+    arm_box_rot: torch.Tensor | None = None
+    arm_box_half: torch.Tensor | None = None
 
     @property
     def ee_position(self) -> torch.Tensor:

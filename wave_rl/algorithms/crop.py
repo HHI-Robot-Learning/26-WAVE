@@ -19,6 +19,9 @@ ROBOT_JOINT_DIM = 7
 #: object, to its goal and to the two corridors the skill will sweep, and where it has to go
 #: itself. The scene enters every learned module through these rows and nothing else.
 PAIR_DIM = 3 + 3 + 3 + 1 + 3 + 1 + 1 + 1
+#: columns an arm-clearance crop appends to every pair row: the other object's signed
+#: distance to the forearm box and to the wrist box of the arm's collision proxies.
+ARM_CLEARANCE_DIM = 2
 #: clearances per worked object: the min over the other objects of a learned per-pair score.
 #: Nothing names them -- what the eight mean is settled by the return.
 N_CLEARANCE = 8
@@ -104,6 +107,22 @@ def robot_joint_state(obs, layout) -> torch.Tensor:
     return torch.cat([q, qd], dim=1)
 
 
+def box_signed_distance(points: torch.Tensor, centre: torch.Tensor, rotation: torch.Tensor,
+                        half: torch.Tensor) -> torch.Tensor:
+    """(B, N, 3) points x boxes (B, K, 3) centres, (B, K, 3, 3) orientations whose columns
+    are the box axes, (K, 3) half sizes -> (B, N, K) the signed distance from every point to
+    every box surface: the Euclidean gap outside, minus the depth to the nearest face inside.
+
+    Measured from an object's CENTRE, so the gap between the object's own faces and the box
+    lies between this minus h*sqrt(3) and this minus h."""
+    offset = points[:, :, None, :] - centre[:, None, :, :]                      # (B, N, K, 3)
+    local = torch.einsum("bkij,bnki->bnkj", rotation, offset)
+    excess = local.abs() - half
+    outside = excess.clamp_min(0.0).norm(dim=-1)
+    inside = excess.amax(dim=-1).clamp_max(0.0)
+    return outside + inside
+
+
 def pair_floor(pairs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
     """(B, N, PAIR_DIM) x (B, N) -> (B, PAIR_DIM), the elementwise min of the pair rows over
     the other objects, zero where a scene has none. The scripted counterpart of a learned
@@ -127,16 +146,20 @@ class Crop:
     """
 
     def __init__(self, h: float, disc_radius: float, layout, length_scale_h: float,
-                 length_outer: float) -> None:
+                 length_outer: float, arm_clearance: bool) -> None:
         self.h = float(h)
         #: L, the local length every crop magnitude is compressed about.
         self.length_scale = length_scale_h * self.h
         self.length_outer = length_outer
         self.disc_radius = float(disc_radius)
         self.layout = layout
+        self.arm_clearance = arm_clearance
+        self.pair_dim = PAIR_DIM + ARM_CLEARANCE_DIM * arm_clearance
 
     def banner(self) -> str:
-        return (f"== CROP  core={CROP_CORE} pair={PAIR_DIM} clearances={N_CLEARANCE} | anchor="
+        return (f"== CROP  core={CROP_CORE} pair={self.pair_dim} "
+                f"(arm clearance {'on' if self.arm_clearance else 'off'}) "
+                f"clearances={N_CLEARANCE} | anchor="
                 f"{'hand (disc R=%.3g)' % self.disc_radius if self.disc_radius else 'object'}"
                 f" | length L={self.length_scale:.3f} m ({self.length_scale / self.h:.3g} h) "
                 f"V={self.length_outer:.1f} (log-relative: relative resolution at every "
@@ -183,6 +206,9 @@ class Crop:
             sat         1   the other object is at its goal now
             |r|, |q|    2   the two plain distances, so a distance is never a detour
                             through three compressed components
+            arm         2   with `arm_clearance`: the other object's signed distance to the
+                            forearm box and to the wrist box of the arm's collision proxies,
+                            so the arm body sweeping the table at object height is in view
 
         Every row is a difference of two positions and nothing else. Whatever a corridor,
         a projection or an approach column would have said is a function of these: the
@@ -227,14 +253,19 @@ class Crop:
         same = torch.arange(N, device=pos.device)[None, None, :] == worked[:, :, None]
         mask = active[:, None, :] & ~same & (rho < self.length_outer)
 
-        feats = torch.cat([
+        columns = [
             self.compress_vec(r), self.compress_vec(q),
             self.compress_vec(p_i - e).expand(-1, -1, N, -1),
             self.compress_signed(r[..., 2]).unsqueeze(-1),
             self.compress_vec(g_j - g_i),
             sat.float()[:, None, :, None].expand(-1, M, -1, -1),
             self.compress(r_n).unsqueeze(-1), self.compress(q_n).unsqueeze(-1),
-        ], dim=-1).clamp(-5.0, 5.0)
+        ]
+        if self.arm_clearance:
+            arm = box_signed_distance(pos, obs.arm_box_pos.float(), obs.arm_box_rot.float(),
+                                      obs.arm_box_half)
+            columns.append(self.compress_signed(arm)[:, None].expand(-1, M, -1, -1))
+        feats = torch.cat(columns, dim=-1).clamp(-5.0, 5.0)
         return torch.where(mask.unsqueeze(-1), feats, torch.zeros_like(feats)), mask
 
     def build(self, obs, atom: torch.Tensor, sat: torch.Tensor,

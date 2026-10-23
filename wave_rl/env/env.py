@@ -1,3 +1,4 @@
+import mujoco
 import numpy as np
 import torch
 
@@ -152,12 +153,21 @@ def resolve_layout(plant: Plant, obj_names: list[str], ref_name: str) -> dict:
     object_q = {i for qs in qpos_start for i in range(qs, qs + 7)}
     object_v = {i for vs in vel_start for i in range(vs, vs + 6)}
     ee_name = plant.cfg.grasp_ee_point
+    arm_geoms = []
+    for name in plant.cfg.arm_proxies:
+        body = model.body(name).id
+        assert model.body_geomnum[body] == 1 and \
+            model.geom_type[model.body_geomadr[body]] == mujoco.mjtGeom.mjGEOM_BOX, (
+                f"arm proxy {name!r} must carry exactly one box geom")
+        arm_geoms.append(int(model.body_geomadr[body]))
     return {
         "obj_qpos_start": qpos_start,
         "obj_vel_start": vel_start,
         "body_ids": [model.body(n).id for n in obj_names],
         "ref_id": model.body(ref_name).id,
         "ee_id": None if ee_name is None else model.body(ee_name).id,
+        "arm_geom_ids": arm_geoms,
+        "arm_geom_half": [model.geom_size[g].tolist() for g in arm_geoms],
         "robot_qpos": np.array(sorted(set(range(nq)) - object_q), dtype=np.int32),
         "robot_qvel": np.array(sorted(set(range(nv)) - object_v), dtype=np.int32),
     }
@@ -211,6 +221,9 @@ class MultiObjectEnv:
         self._body_ids = torch.tensor(layout["body_ids"], dtype=torch.long, device=dev)
         self._ref_id = layout["ref_id"]
         self._ee_id = layout["ee_id"]
+        self._arm_geom_ids = torch.tensor(layout["arm_geom_ids"], dtype=torch.long, device=dev)
+        self._arm_geom_half = torch.tensor(layout["arm_geom_half"], dtype=torch.float32,
+                                           device=dev).reshape(-1, 3)
         self._qpos_cols = torch.tensor(
             [[qs + d for d in range(7)] for qs in layout["obj_qpos_start"]],
             dtype=torch.long, device=dev)                                        # (N, 7)
@@ -516,6 +529,13 @@ class MultiObjectEnv:
                 ee_vel = torch.where(reset_mask[:, None], torch.zeros_like(ee_vel), ee_vel)
             if store:
                 self._prev_ee = ee_pos
+        arm_box_pos = arm_box_rot = arm_box_half = None
+        if len(self._arm_geom_ids):
+            sim = self.plant.sim
+            arm_box_pos = (sim.geom_xpos_t[:, self._arm_geom_ids]
+                           - sim.xpos_t[:, self._ref_id][:, None, :])
+            arm_box_rot = sim.geom_xmat_t[:, self._arm_geom_ids]
+            arm_box_half = self._arm_geom_half
         return BatchedObservation(
             robot_qpos=q[:, self._robot_q_idx],
             robot_qvel=v[:, self._robot_v_idx],
@@ -529,6 +549,9 @@ class MultiObjectEnv:
             satisfied_mask=satisfied,
             ee_pos=ee_pos,
             ee_vel=ee_vel,
+            arm_box_pos=arm_box_pos,
+            arm_box_rot=arm_box_rot,
+            arm_box_half=arm_box_half,
         )
 
 

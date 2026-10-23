@@ -13,3 +13,4 @@ grip_hysteresis: 0.3
 grip_closed_at_upper: false
 ctrl_antiwindup: true
 grasp_ee_point: panda_hand_tip
+arm_proxies: [armproxy_forearm, armproxy_wrist]

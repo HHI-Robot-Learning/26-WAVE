@@ -3,7 +3,7 @@ import math
 import torch
 
 from wave_rl.algorithms.lifter import Lifter
-from wave_rl.algorithms.crop import CROP_CORE, N_CLEARANCE, PAIR_DIM, Crop, CropBatch, carried_flag
+from wave_rl.algorithms.crop import CROP_CORE, N_CLEARANCE, Crop, CropBatch, carried_flag
 from wave_rl.env.observation import BatchedObservation
 
 
@@ -76,7 +76,7 @@ class WaveRuntime(Lifter):
         self._state = None
 
         self.crop = Crop(self.h, cfg.crop_radius_h * self.h or skill.disc_radius, skill.layout,
-                         cfg.crop_length_scale_h, cfg.crop_length_outer)
+                         cfg.crop_length_scale_h, cfg.crop_length_outer, cfg.crop_arm_clearance)
         print(self.crop.banner())
 
         # An object dropped from goal height needs a few free-fall times to settle; the latch
@@ -234,7 +234,7 @@ class WaveRuntime(Lifter):
 
     def _checkpoint(self) -> dict:
         return {"dims": {"obs_dim": self.obs_dim, "action_dim": self.action_dim,
-                         "crop_core": CROP_CORE, "pair_dim": PAIR_DIM,
+                         "crop_core": CROP_CORE, "pair_dim": self.crop.pair_dim,
                          "n_clearance": N_CLEARANCE},
                 "frozen_agent": self.skill.path,
                 "disc_radius": self.skill.disc_radius}
@@ -245,7 +245,8 @@ class WaveRuntime(Lifter):
         from them, so a head trained on a different crop would load into shapes that happen
         to match and read columns that mean something else."""
         dims = checkpoint["dims"]
-        want = {"crop_core": CROP_CORE, "pair_dim": PAIR_DIM, "n_clearance": N_CLEARANCE}
+        want = {"crop_core": CROP_CORE, "pair_dim": self.crop.pair_dim,
+                "n_clearance": N_CLEARANCE}
         if {k: dims[k] for k in want} != want:
             raise SystemExit(
                 f"this head was trained on a crop of {dims} and this code builds {want}; a "

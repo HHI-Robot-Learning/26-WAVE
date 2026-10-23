@@ -44,6 +44,8 @@ class Sim:
         self._qvel_t = wp.to_torch(self.data.qvel)
         self._act_t = wp.to_torch(self.data.actuator_force)
         self._xpos_t = wp.to_torch(self.data.xpos)
+        self._geom_xpos_t = wp.to_torch(self.data.geom_xpos)
+        self._geom_xmat_t = wp.to_torch(self.data.geom_xmat)
         self._step_graph = None
         self._step_graph_key = None
         self._nefc_peak = None
@@ -149,6 +151,16 @@ class Sim:
     def xpos_t(self) -> torch.Tensor:
         """(nworld, nbody, 3) body world positions."""
         return self._xpos_t
+
+    @property
+    def geom_xpos_t(self) -> torch.Tensor:
+        """(nworld, ngeom, 3) geom world positions."""
+        return self._geom_xpos_t
+
+    @property
+    def geom_xmat_t(self) -> torch.Tensor:
+        """(nworld, ngeom, 3, 3) geom world orientations, columns the geom's own axes."""
+        return self._geom_xmat_t
 
     @property
     def torch_device(self):

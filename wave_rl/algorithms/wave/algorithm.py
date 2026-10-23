@@ -10,7 +10,7 @@ from .warp import (InputWarp, P_DIM, WarpPolicy, categorical, component_pinned_g
                    side_pinned_groups, surplus_pinned_groups, warp_action)
 from .selector import (N_BOOK, OBJ_DIM, TOKEN_KEYS, LocalSelector, OptionValueHead,
                        masked_argmax, normalised_entropy, pick_probabilities, scene_tokens)
-from wave_rl.algorithms.crop import (CROP_CORE, N_CLEARANCE, PAIR_DIM, SELF_DIM,
+from wave_rl.algorithms.crop import (CROP_CORE, N_CLEARANCE, SELF_DIM,
                                           CropBatch)
 
 
@@ -19,7 +19,7 @@ class Rollout(NamedTuple):
     bootstrap), the sampled warps and what the env paid for them."""
 
     cores: torch.Tensor         # (T + 1, B, CROP_CORE)
-    pairs: torch.Tensor         # (T + 1, B, N, PAIR_DIM)
+    pairs: torch.Tensor         # (T + 1, B, N, pair_dim)
     masks: torch.Tensor         # (T + 1, B, N)
     indices: torch.Tensor       # (T, B, P_DIM)
     logps: torch.Tensor         # (T, B)
@@ -86,13 +86,13 @@ class WaveAlgorithm(WaveRuntime):
             + side_pinned_groups(c.warp_side)
             + component_pinned_groups(c.warp_component)
             + surplus_pinned_groups(self.layout, self.action_dim, self.skill.chain is not None)))
-        self.warp_policy = WarpPolicy(self.h, pinned, c.warp_head)
+        self.warp_policy = WarpPolicy(self.h, pinned, c.warp_head, self.crop.pair_dim)
         self.warp_policy.to(self.device)
         self.warp_optim = torch.optim.Adam(self.warp_policy.parameters(), lr=c.learning_rate)
         self.warp_schedule = self._schedule(self.warp_optim, c.ppo.learning_rate_final)
         print(f"-- WARP HEAD  P_DIM={P_DIM} bins={self.warp_policy.n_bins} "
               f"pinned={list(pinned)}")
-        print(f"-- CLEARANCE  n={N_CLEARANCE} from pair rows of {PAIR_DIM}")
+        print(f"-- CLEARANCE  n={N_CLEARANCE} from pair rows of {self.crop.pair_dim}")
         print(f"-- RECIPE  lr={c.learning_rate:.3g}->{c.ppo.learning_rate_final:.3g} "
               f"sel={c.selector.learning_rate:.3g}->{c.selector.learning_rate_final:.3g} "
               f"(cosine) | selector={c.selector_mode} kl_penalty={c.ppo.kl_penalty_coef:.3g}")
@@ -209,7 +209,7 @@ class WaveAlgorithm(WaveRuntime):
             every = torch.arange(N, device=self.device)[None].expand(B, -1)
             pairs, mask = self.crop.pair_features(obs, sat, every)
             clear = self.warp_policy.clearance(
-                pairs.reshape(B * N, N, PAIR_DIM),
+                pairs.reshape(B * N, N, self.crop.pair_dim),
                 mask.reshape(B * N, N)).reshape(B, N, N_CLEARANCE)
             tokens = scene_tokens(obs, state, sat, self.crop.self_state(obs), clear)
             scores, feasibility, _ = self.selector(tokens)
@@ -551,7 +551,7 @@ class WaveAlgorithm(WaveRuntime):
         obs = self._obs
         N = self._state.N
         cores = torch.zeros(T + 1, B, CROP_CORE, device=dev)
-        pairs = torch.zeros(T + 1, B, N, PAIR_DIM, device=dev)
+        pairs = torch.zeros(T + 1, B, N, self.crop.pair_dim, device=dev)
         masks = torch.zeros(T + 1, B, N, dtype=torch.bool, device=dev)
         indices = torch.zeros(T, B, P_DIM, dtype=torch.long, device=dev)
         logps = torch.zeros(T, B, device=dev)
@@ -611,7 +611,7 @@ class WaveAlgorithm(WaveRuntime):
         N = rollout.pairs.shape[2]
         policy = self.warp_policy
         flat_core = rollout.cores[:T].reshape(T * B, CROP_CORE)
-        flat_pairs = rollout.pairs[:T].reshape(T * B, N, PAIR_DIM)
+        flat_pairs = rollout.pairs[:T].reshape(T * B, N, self.crop.pair_dim)
         flat_mask = rollout.masks[:T].reshape(T * B, N)
         flat_idx = rollout.indices.reshape(T * B, P_DIM)
         flat_logp = rollout.logps.reshape(-1)
@@ -754,7 +754,7 @@ class WaveAlgorithm(WaveRuntime):
         super()._apply_checkpoint(checkpoint)
         if self.warp_policy is None:
             self.warp_policy = WarpPolicy(self.h, tuple(checkpoint["disabled_groups"]),
-                                          self.cfg.warp_head).to(self.device)
+                                          self.cfg.warp_head, self.crop.pair_dim).to(self.device)
             self.warp_optim = torch.optim.Adam(self.warp_policy.parameters(),
                                                lr=self.cfg.learning_rate)
         self.warp_policy.load_state_dict(checkpoint["warp_policy"])

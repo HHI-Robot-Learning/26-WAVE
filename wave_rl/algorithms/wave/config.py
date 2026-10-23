@@ -177,6 +177,9 @@ class WaveConfig(AlgorithmConfig):
     #: If true, includes the unwarped pi_0 action in the crop (costs one extra skill forward
     #: per decision).
     crop_tool_action: bool = True
+    #: If true, every pair row also carries the other object's signed distance to the arm's
+    #: forearm and wrist proxy boxes (the plant's `arm_proxies`).
+    crop_arm_clearance: bool = False
 
     #: THE SELECTION CLOCK, as a fraction of the task's own per-object time budget. The
     #: selector is asked every `selector_decide_fraction * time_per_object` seconds, and on

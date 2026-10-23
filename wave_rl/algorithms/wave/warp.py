@@ -4,7 +4,7 @@ import torch
 from torch import nn
 from torch.distributions import Categorical
 
-from wave_rl.algorithms.crop import CROP_CORE, N_CLEARANCE, PAIR_DIM, CropBatch
+from wave_rl.algorithms.crop import CROP_CORE, N_CLEARANCE, CropBatch
 from wave_rl.algorithms.wave.config import WarpHeadConfig
 from wave_rl.skills.base import quat_to_rotvec, rotvec_to_quat
 from wave_rl.skills.kinematics import null_space_direction
@@ -463,20 +463,20 @@ class PairEncoder(nn.Module):
     free to rank by different things.
     """
 
-    def __init__(self, hidden: int) -> None:
+    def __init__(self, pair_dim: int, hidden: int) -> None:
         super().__init__()
-        self.net = nn.Sequential(nn.Linear(PAIR_DIM, hidden), nn.GELU(),
+        self.net = nn.Sequential(nn.Linear(pair_dim, hidden), nn.GELU(),
                                  nn.Linear(hidden, hidden), nn.GELU(),
                                  nn.Linear(hidden, N_CLEARANCE))
 
     def rows(self, pairs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """(B, N, PAIR_DIM) x (B, N) -> (B, N, N_CLEARANCE), the per-pair scores, reading +1
+        """(B, N, pair_dim) x (B, N) -> (B, N, N_CLEARANCE), the per-pair scores, reading +1
         wherever there is no pair so an absent neighbour can never win the min."""
         row = torch.tanh(self.net(pairs))
         return torch.where(mask.unsqueeze(-1), row, torch.ones_like(row))
 
     def forward(self, pairs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """(B, N, PAIR_DIM) x (B, N) -> (B, N_CLEARANCE). An empty row set reads +1 on every
+        """(B, N, pair_dim) x (B, N) -> (B, N_CLEARANCE). An empty row set reads +1 on every
         channel: nothing anywhere, maximum clearance."""
         return self.rows(pairs, mask).amin(dim=1)
 
@@ -497,7 +497,8 @@ class WarpPolicy(nn.Module):
     one parallel pass.
     """
 
-    def __init__(self, h: float, disabled_groups: tuple, cfg: WarpHeadConfig) -> None:
+    def __init__(self, h: float, disabled_groups: tuple, cfg: WarpHeadConfig,
+                 pair_dim: int) -> None:
         super().__init__()
         self.cfg = cfg
         self.disabled_groups = tuple(disabled_groups)
@@ -551,7 +552,7 @@ class WarpPolicy(nn.Module):
         self.register_buffer("norm_var", torch.ones(CROP_CORE))
         self.register_buffer("norm_count", torch.tensor(1e-4))
         self.core_proj = nn.Linear(CROP_CORE, d)
-        self.pair_encoder = PairEncoder(cfg.pair_hidden)
+        self.pair_encoder = PairEncoder(pair_dim, cfg.pair_hidden)
         self.clear_proj = nn.Linear(N_CLEARANCE, d)
         self.prev_warp_proj = nn.Linear(P_DIM, d)
         self.pos_emb = nn.Parameter(torch.zeros(3, d))
@@ -642,7 +643,7 @@ class WarpPolicy(nn.Module):
         self.norm_count.copy_(n)
 
     def clearance(self, pairs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """(B, N, PAIR_DIM) x (B, N) -> (B, N_CLEARANCE): how much room the worked object has.
+        """(B, N, pair_dim) x (B, N) -> (B, N_CLEARANCE): how much room the worked object has.
 
         Public because the selector reads the same eight numbers for every candidate, through
         this same encoder and detached, rather than growing a second opinion about clearance."""
