@@ -35,7 +35,7 @@
     <position name="panda_joint5" joint="panda_joint5" class="ryjoint" kp="300." kv="2." />
     <position name="panda_joint6" joint="panda_joint6" class="ryjoint" kp="300." kv="2." />
     <position name="panda_joint7" joint="panda_joint7" class="ryjoint" kp="300." kv="2." />
-    <position name="jawL" joint="jawL" class="ryjoint" kp="1200." kv="6." ctrllimited="true" ctrlrange=".0225 .044" />
+    <position name="jawL" joint="jawL" class="ryjoint" kp="1200." kv="6." ctrllimited="true" ctrlrange=".0215 .044" />
   </actuator>
   <equality>
     <joint joint1="jawR" joint2="jawL" polycoef="0 -1.0 0 0 0" />
@@ -154,7 +154,7 @@
     </body>
     <body name="obj_0">
       <freejoint />
-      <geom type="box" size="0.02 0.02 0.02" rgba="0.9 0.14 0.14 1" mass="0.03" class="geom_contact" contype="3" conaffinity="3" condim="4" />
+      <geom type="box" size="0.019 0.019 0.019" rgba="0.9 0.14 0.14 1" mass="0.03" class="geom_contact" contype="3" conaffinity="3" condim="4" />
     </body>
     <body name="camera_init" pos="0.45 -0.95 0.7" quat="-0.49106826323321384 0.8711210942487358 0.0 0.0" />
     <camera name="cam0" pos="0.45 -0.95 0.7" quat="0.871121 0.491068 0 0" fovy="48.89" resolution="800 800" />

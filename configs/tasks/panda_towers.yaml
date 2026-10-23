@@ -1,22 +1,25 @@
-# Panda gripper, towers of 3 cubes; WAVE trained on 1-7 cubes, evaluated on 1-15.
+# Panda gripper, towers of 3 cubes of 3.8 cm at 5 Hz, skill and warper deciding every tick;
+# WAVE trained on 1-7 cubes, evaluated on 1-15.
 scene: panda_cube_stack
 plant: panda_gripper
 algorithm: wave
-skill: skills/panda_gripper.torch
+skill: data/skills/panda_gripper_seed0.torch
 algorithm_cfg:
   crop_radius_h: 9.375
+  crop_arm_clearance: true
+  cadence_ticks: 1
 goal:
   type: towers
   tower_height: 3
-  stack_dz: 0.0425
-  eps_pos: 0.0175
+  stack_dz: 0.040375
+  eps_pos: 0.016625
   success_mode: simultaneous
 train:
   enabled: true
   n_train_max: 7
   num_scenes: 2048
-  budget: 786_432_000
-  time_per_object: 30.0
+  budget: 393_216_000
+  time_per_object: 45.0
   remove_on_completion: false
   min_separation: 0.15
   anchor_stride: 3
@@ -25,5 +28,5 @@ train:
 eval:
   start: 1
   stop: 15
-  time_per_object: 30.0
+  time_per_object: 45.0
   n_episodes: 20
