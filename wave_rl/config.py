@@ -48,6 +48,10 @@ class TrainConfig:
     enabled: bool = False
     budget: int = 1_000_000              # learn() total env steps (across all parallel scenes)
     n_train_max: int = 3                 # max objects per scene during training
+    #: pin every training episode to this many objects on the n_train_max-object scene, the
+    #: surplus parked outside the arena exactly as in the sweep. None draws the count
+    #: uniformly from 1..n_train_max.
+    active_count: int | None = None
     num_scenes: int = 64                 # parallel training scenes
     n_configs: int = 2000                # rows drawn from the layout pool
     pool_dir: str = "data/pools"         # the layout pools, one file per scene/count/seed

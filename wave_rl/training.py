@@ -33,6 +33,9 @@ def train(ctx, logger) -> str | None:
         time_per_object=task.train.time_per_object,
         remove_on_completion=task.train.remove_on_completion,
         seed=task.train.seed)
+    if task.train.active_count is not None:
+        env.schedule.set_override(task.train.active_count)
+        print(f"-- every training episode holds {task.train.active_count} objects")
     algo = ctx.build_algorithm(env)
     budget = task.train.budget
     algo.budget = budget
