@@ -226,16 +226,13 @@ class FrozenSkill:
     def observe(self, x: SkillInputs) -> torch.Tensor:
         raise NotImplementedError
 
-    def present(self, obs, idx: torch.Tensor, warp=None, goal_override=None,
-                localize: bool = True) -> torch.Tensor:
+    def present(self, obs, idx: torch.Tensor, warp=None, goal_override=None) -> torch.Tensor:
         """(B, obs_dim) — the skill's own observation for the selected objects.
 
         The warp acts on the raw struct, BEFORE localisation, so the warp keeps its
-        world-frame meaning and localisation stays a pure change of frame.
-
-        ``localize=False`` presents the ABSOLUTE scene, which is what a caller wants when the
-        skill's own weights are what is under test: any change of frame would confound the
-        thing being measured with the frame it is measured in.
+        world-frame meaning and localisation stays a pure change of frame. Localisation is
+        part of the skill: it moves the scene into the span the skill was trained on, so every
+        caller sees the skill at its own competence.
 
         This projection is LOSSY BY DESIGN: the skill stays blind to the other objects, and
         an algorithm that does see them compensates through the warp.
@@ -243,7 +240,7 @@ class FrozenSkill:
         x = self.inputs(obs, idx, goal_override)
         if warp is not None:
             x = warp.apply(x, self.layout)
-        return self.observe(self.localize(x) if localize else x)
+        return self.observe(self.localize(x))
 
     def act(self, skill_obs: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError

@@ -229,26 +229,31 @@ class TD7Agent:
             zsa = self.fixed_encoder.zsa(zs, action)
             return self.critic(state, action, zsa, zs).mean(axis=1)
 
-    def train(self, logger: Means, multi: int = 1):
+    def train(self, logger: Means, multi: int = 1, train_actor: bool = True):
+        """`multi` gradient steps. `train_actor=False` steps the critic alone: the actor and the
+        encoder it reads stay exactly as they are, so a critic can be fitted to a new reward
+        under a fixed policy."""
         for _ in range(multi):
-            self.train_step(*self.replay_buffer.sample(), logger)
+            self.train_step(*self.replay_buffer.sample(), logger, train_actor)
 
-    def train_step(self, indices, state, action, next_state, reward, discount, logger):
+    def train_step(self, indices, state, action, next_state, reward, discount, logger,
+                   train_actor: bool = True):
         hp = self.hp
         self.training_steps += 1
 
-        with torch.no_grad():
-            next_zs = self.encoder.zs(next_state)
-        zs = self.encoder.zs(state)
-        pred_zs = self.encoder.zsa(zs, action)
-        encoder_loss = F.mse_loss(pred_zs, next_zs)
-        logger.add("train/enc_loss", encoder_loss)
+        if train_actor:
+            with torch.no_grad():
+                next_zs = self.encoder.zs(next_state)
+            zs = self.encoder.zs(state)
+            pred_zs = self.encoder.zsa(zs, action)
+            encoder_loss = F.mse_loss(pred_zs, next_zs)
+            logger.add("train/enc_loss", encoder_loss)
 
-        self.encoder_optimizer.zero_grad()
-        encoder_loss.backward()
-        if hp.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), hp.grad_clip)
-        self.encoder_optimizer.step()
+            self.encoder_optimizer.zero_grad()
+            encoder_loss.backward()
+            if hp.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), hp.grad_clip)
+            self.encoder_optimizer.step()
 
         with torch.no_grad():
             fixed_target_zs = self.fixed_encoder_target.zs(next_state)
@@ -283,7 +288,7 @@ class TD7Agent:
         priority = td_loss.max(1)[0].clamp(min=hp.min_priority).pow(hp.alpha)
         self.replay_buffer.update_priority(priority, indices)
 
-        if self.training_steps % hp.policy_freq == 0:
+        if train_actor and self.training_steps % hp.policy_freq == 0:
             actor = self.actor(state, fixed_zs)
             fixed_zsa = self.fixed_encoder.zsa(fixed_zs, actor)
             Q = self.critic(state, actor, fixed_zsa, fixed_zs)

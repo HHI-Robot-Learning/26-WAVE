@@ -1,5 +1,5 @@
-# The Panda's cube skill (parallel-jaw hand) on 3.8 cm cubes at 5 Hz, warm-started from the
-# 20 Hz skill: init_from=skills/panda_gripper.torch td7.actor_lr=0.00003 T_end=400000.
+# The Panda's cube skill (parallel-jaw hand) on 3.8 cm cubes at 5 Hz, trained from scratch.
+# The anchor terms below act only on a warm start (init_from).
 embodiment: panda_gripper
 scene: panda_cube_single
 num_scenes: 1024

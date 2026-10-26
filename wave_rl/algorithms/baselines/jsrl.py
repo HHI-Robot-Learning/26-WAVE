@@ -1,11 +1,11 @@
 import dataclasses
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch
 
 from wave_rl.algorithms.base import AlgorithmConfig
-from wave_rl.algorithms.baselines.finetune import ScriptedLifter
+from wave_rl.algorithms.baselines.finetune import SCENE_VALUE_CLIP, ScriptedLifter
 from wave_rl.env.observation import BatchedObservation
 from wave_rl.td7.agent import TD7Agent
 
@@ -18,9 +18,12 @@ class JSRLConfig(AlgorithmConfig):
     every training episode, that fraction taken of the scene's OWN episode length; a separate
     TD7 exploration policy, seeded from the guide's weights, takes over for the rest. Only the
     exploration policy's own transitions enter its replay buffer, so it learns the episode
-    tail first. The fraction steps down a linear schedule to 0 each time the exploration
-    policy's success holds up against its best so far. At eval the exploration policy acts
-    alone; it is what ``save``/``load`` persist.
+    tail first. The fraction steps down a linear schedule to 0 each time the COMBINED
+    guide-then-explore policy's success holds up against the best it has reached so far,
+    measured over episodes run entirely at the current stage; a stage that never holds up
+    still ends after `budget / n_curriculum` env steps, so the schedule reaches the
+    exploration policy alone within the budget. At eval the exploration policy acts alone; it
+    is what ``save``/``load`` persist.
 
     Every TD7 hyperparameter not named here is the guide skill's own saved one."""
 
@@ -30,20 +33,16 @@ class JSRLConfig(AlgorithmConfig):
     guide_horizon_frac: float = 0.9
     #: stages, the fraction stepped linearly from guide_horizon_frac down to 0
     n_curriculum: int = 8
-    #: full-episode successes of the exploration policy averaged for the advance test
-    curriculum_window: int = 50
-    #: a stage advances once the window mean is >= its best so far - this ...
+    #: full-episode successes of the combined policy averaged for the advance test
+    curriculum_window: int = 500
+    #: a stage advances once the window mean is >= the best window mean so far - this
     curriculum_tolerance: float = 0.05
-    #: ... and >= this, so a policy that never succeeds does not advance on its own best of 0
-    curriculum_min_success: float = 0.5
-    #: env steps in a stage before a success-based advance
-    min_stage_steps: int = 200_000
-    #: env steps after which a stage advances regardless
-    max_stage_steps: int = 500_000_000
     #: gradient updates per env step, once out of warmup
     utd: int = 1
     #: transitions of guide-action rollout before any gradient update
     warmup_steps: int = 10_000
+    #: the critic's bootstrap range on the scene reward
+    value_clip: list[float] = field(default_factory=lambda: list(SCENE_VALUE_CLIP))
 
 
 class JSRL(ScriptedLifter):
@@ -68,6 +67,9 @@ class JSRL(ScriptedLifter):
         self._curr_window = deque(maxlen=cfg.curriculum_window)
         #: (B,) each scene's hand-off step in its current episode
         self._h_scene = torch.zeros(env.num_scenes, dtype=torch.long, device=self.device)
+        #: (B,) the stage each scene's current episode started in; only episodes run entirely
+        #: at the current stage measure it
+        self._episode_stage = torch.zeros(env.num_scenes, dtype=torch.long, device=self.device)
 
     def _build_explore(self) -> None:
         """The exploration :class:`TD7Agent`: the guide's dims and hyperparameters with this
@@ -75,7 +77,8 @@ class JSRL(ScriptedLifter):
         if self._explore is not None:
             return
         hp = dataclasses.replace(self.skill.cfg.td7, learning_rate=self.cfg.learning_rate,
-                                 exploration_noise=self.cfg.exploration_noise)
+                                 exploration_noise=self.cfg.exploration_noise,
+                                 value_clip=list(self.cfg.value_clip))
         self._explore = TD7Agent(state_dim=self.skill.obs_dim, action_dim=self.skill.action_dim,
                                  hp=hp)
         self._explore.load_state_dict(self.skill.agent.state_dict())
@@ -99,20 +102,19 @@ class JSRL(ScriptedLifter):
             return
         self._stage_steps += self.env.num_scenes
         win = self._curr_window
-        ready = len(win) >= win.maxlen
+        # the first episodes to finish in a stage are its fastest; once the stage has run as
+        # long as its longest episode, the finishing stream is the stage's own outcome mix
+        settled = self._stage_steps >= int(self._episode_len(active_count).max()) * self.env.num_scenes
+        ready = settled and len(win) >= win.maxlen
         mean = (sum(win) / len(win)) if win else 0.0
-        has_best = self._best > -float("inf")
-        perf_ok = (ready and has_best and self._stage_steps >= cfg.min_stage_steps
-                   and mean >= cfg.curriculum_min_success
-                   and mean >= self._best - cfg.curriculum_tolerance)
+        perf_ok = ready and mean >= self._best - cfg.curriculum_tolerance
         if ready:
             self._best = max(self._best, mean)
-        time_forced = self._stage_steps >= cfg.max_stage_steps
+        time_forced = self._stage_steps >= self.budget // cfg.n_curriculum
         if perf_ok or time_forced:
             self._stage += 1
             self._frac = self._frac_schedule[self._stage]
             self._stage_steps = 0
-            self._best = -float("inf")
             win.clear()
             # in-flight episodes pick up the lower horizon immediately, from their own length
             ep_len = self._episode_len(active_count)
@@ -123,7 +125,7 @@ class JSRL(ScriptedLifter):
 
     def act_batched(self, obs: BatchedObservation, dones=None) -> torch.Tensor:
         self._build_explore()
-        return self._explore.select_action(self._present(obs, self._select(obs)),
+        return self._explore.select_action(self.skill.present(obs, self._select(obs)),
                                            use_exploration=False)
 
     def learn(self, n_steps: int) -> None:
@@ -144,13 +146,12 @@ class JSRL(ScriptedLifter):
                                     self._obs.active_mask.sum(dim=1))
             self._ep_reward = torch.zeros(b, device=self.device)
             self._steps_since_reset = torch.zeros(b, dtype=torch.long, device=self.device)
-            self._handoff = torch.zeros(b, dtype=torch.bool, device=self.device)
 
         target = self.total_steps + n_steps
         while self.total_steps < target:
             obs = self._obs
             k = self._select(obs)
-            base_obs = self._present(obs, k)
+            base_obs = self.skill.present(obs, k)
 
             use_explore = self._steps_since_reset >= self._h_scene
             allow_train = explore.replay_buffer.size >= cfg.warmup_steps
@@ -167,7 +168,6 @@ class JSRL(ScriptedLifter):
             self.reward.refresh(next_obs)
             dones = terminated | truncated
             self._ep_reward = self._ep_reward + rewards
-            self._handoff = self._handoff | use_explore
 
             # Only the exploration policy's own transitions, with the true pre-reset next
             # state presented for the SAME object k the step drove, so (s, a, s') describes one
@@ -177,20 +177,20 @@ class JSRL(ScriptedLifter):
             self.logger.add("jsrl/explore_step_frac", use_explore.float(), b)
             if bool(use_explore.any()):
                 m = use_explore
-                next_base_true = self._present(next_obs_true, k)
+                next_base_true = self.skill.present(next_obs_true, k)
                 explore.replay_buffer.add(
                     base_obs[m], action[m], next_base_true[m], rewards[m], discount[m])
 
             self._steps_since_reset = self._steps_since_reset + 1
             if bool(dones.any()):
                 self.logger.add("train/episode_return", self._ep_reward * dones, dones.float())
-                # only episodes the exploration policy actually finished count for the stage
-                finished = (dones & self._handoff).cpu()
+                # every episode run entirely at this stage measures it, handed off or not
+                finished = (dones & (self._episode_stage == self._stage)).cpu()
                 self._curr_window.extend(terminated.cpu()[finished].float().tolist())
                 self._ep_reward = torch.where(dones, torch.zeros_like(self._ep_reward), self._ep_reward)
                 self._steps_since_reset = torch.where(
                     dones, torch.zeros_like(self._steps_since_reset), self._steps_since_reset)
-                self._handoff = self._handoff & ~dones
+                self._episode_stage[dones] = self._stage
                 self._resample_horizons(dones, info["active_count"])
 
             if allow_train:
