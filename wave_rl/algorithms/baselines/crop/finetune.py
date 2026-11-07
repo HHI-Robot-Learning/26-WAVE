@@ -35,6 +35,8 @@ class FineTuneCropConfig(CropBaselineConfig):
     updates_per_decision: int = 16
     #: env steps during which only the critic trains and the actor stays exactly mu
     critic_warmup_steps: int = 10_000_000
+    #: the actor fine-tunes at plain fine-tune's rate; the critic refits at learning_rate
+    actor_learning_rate: float = 2e-5
     #: alpha in  -Q / mean|Q| + alpha * ||mu_theta(sigma, chi) - mu_frozen(sigma)||^2
     anchor_alpha: float = 0.0
 
@@ -185,7 +187,7 @@ class FineTuneCrop(CropBaseline):
         self.critic = CropCritic(mu.critic, hidden).to(self.device)
         self.actor_target = copy.deepcopy(self.actor)
         self.critic_target = copy.deepcopy(self.critic)
-        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=c.learning_rate)
+        self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=c.actor_learning_rate)
         self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=c.learning_rate)
         self.value_clip = (-10.0, 30.0)
         self.q_max = torch.tensor(-1e8, device=self.device)
