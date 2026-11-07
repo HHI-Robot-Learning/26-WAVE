@@ -33,6 +33,10 @@ def run_episodes(vec_env, algo, max_steps: int) -> dict:
     reason = torch.full_like(objects, END_REASONS.index("rollout_cap"))
     code = {name: torch.full_like(objects, k) for k, name in enumerate(END_REASONS)}
 
+    placed = torch.zeros_like(obs.active_mask)
+    ever_placed = torch.zeros_like(obs.active_mask)
+    knocks = torch.zeros_like(objects)
+
     dones = torch.zeros(B, dtype=torch.bool, device=dev)
     for t in range(1, max_steps + 1):
         action = algo.act_batched(obs, dones)
@@ -40,7 +44,12 @@ def run_episodes(vec_env, algo, max_steps: int) -> dict:
         dones = terminated | truncated
         newly = dones & ~finished
         n_objects = obs_true.active_mask.sum(dim=1)
-        n_done = (obs_true.satisfied_mask & obs_true.active_mask).sum(dim=1)
+        now_placed = obs_true.satisfied_mask & obs_true.active_mask
+        n_done = now_placed.sum(dim=1)
+        live = ~finished
+        knocks = knocks + ((placed & ~now_placed).sum(dim=1) * live)
+        ever_placed |= now_placed & live[:, None]
+        placed = now_placed
         why = torch.where(truncated, code["timeout"],
                           torch.where(n_done >= n_objects, code["success"], code["aborted"]))
         why = torch.where(info["unachievable"], code["object_lost"], why)
@@ -60,6 +69,10 @@ def run_episodes(vec_env, algo, max_steps: int) -> dict:
         "full_success_rate": float((completed == objects).float().mean()),
         "mean_n_completed": float(completed.float().mean()),
         "mean_steps": float(steps.float().mean()),
+        # a placed object that stops being placed: knocked off, or a support pulled from under it
+        "mean_knocks": float(knocks.float().mean()),
+        # the objects in place at the end over the objects that were ever in place
+        "placed_retention": float(completed.sum() / ever_placed.sum().clamp(min=1)),
         **{f"episode_end_{name}_fraction": float((reason == k).float().mean())
            for k, name in enumerate(END_REASONS)},
     }
@@ -155,7 +168,9 @@ def final_sweep(ctx, counts: list[int], logger) -> None:
         ends = "/".join(f"{name} {stats[f'episode_end_{name}_fraction']:.2f}"
                         for name in END_REASONS)
         print(f"  [{c} obj] full_success={stats['full_success_rate']:.2f} "
-              f"mean_completed={stats['mean_n_completed']:.2f} end[{ends}] "
+              f"mean_completed={stats['mean_n_completed']:.2f} "
+              f"knocks={stats['mean_knocks']:.2f} retention={stats['placed_retention']:.2f} "
+              f"end[{ends}] "
               f"[{time.time() - started:.0f}s, scene={len(scene.obj_names)}obj, "
               f"pool={'TRAIN' if provenance['pool_is_training_pool'] else 'held-out'}]")
     out = Path("data/runs") / f"{ctx.run_name}_sweep.csv"
