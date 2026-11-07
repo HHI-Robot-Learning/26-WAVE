@@ -1,5 +1,7 @@
 # The Panda's cube skill (parallel-jaw hand) on 3.8 cm cubes at 5 Hz, trained from scratch.
-# The anchor terms below act only on a warm start (init_from).
+# Its contact physics are the WAVE plant's (configs/plant/panda_gripper.yaml): the skill runs
+# inside WAVE on exactly the plant it learned on. The anchor terms below act only on a warm
+# start (init_from).
 embodiment: panda_gripper
 scene: panda_cube_single
 num_scenes: 1024
@@ -8,14 +10,14 @@ discount_half_life: 2.0
 eval_time_limit: 60.0
 plant:
   tau_step: 0.2
-  tau_sim: 0.001
-  action_scale: 0.125
+  tau_sim: 0.002
+  action_scale: 0.25
   friction: "2.0 0.5 0.2"
-  solref: "0.02 1"
+  solref: "0.006 1"
   solimp: "0.9 0.95 0.001 0.5 2"
-  impratio: 1.0
+  impratio: 10.0
   box_box_primitive: true
-  contacts_per_object: 96
+  contacts_per_object: 32
   grip_binary: true
   grip_hysteresis: 0.3
   grip_closed_at_upper: false
