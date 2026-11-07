@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from wave_rl.td7.agent import AvgL1Norm, LAP_huber
 from wave_rl.td7.buffer import LAP
 
-from wave_rl.algorithms.crop import CROP_CORE, N_CLEARANCE, PAIR_DIM
+from wave_rl.algorithms.crop import CROP_CORE, N_CLEARANCE
 from wave_rl.algorithms.wave.warp import PairEncoder
 
 from .base import CropBaseline, CropBaselineConfig
@@ -68,7 +68,7 @@ class CoreNormalizer(nn.Module):
 class Inputs(NamedTuple):
     sigma: torch.Tensor     # (B, obs_dim) mu's own single-object observation
     core: torch.Tensor      # (B, CROP_CORE) normalized
-    pairs: torch.Tensor     # (B, N, PAIR_DIM)
+    pairs: torch.Tensor     # (B, N, pair_dim)
     mask: torch.Tensor      # (B, N) bool
 
 
@@ -88,10 +88,10 @@ def trainable_copy(module: nn.Module) -> nn.Module:
 class CropActor(nn.Module):
     """mu's actor with the crop embedding as extra first-layer input columns, zero at init."""
 
-    def __init__(self, mu: nn.Module, pair_hidden: int) -> None:
+    def __init__(self, mu: nn.Module, pair_dim: int, pair_hidden: int) -> None:
         super().__init__()
         self.mu = trainable_copy(mu)
-        self.pairs = PairEncoder(pair_hidden)
+        self.pairs = PairEncoder(pair_dim, pair_hidden)
         self.l0_crop = zero_linear(CROP_EMBED, mu.l0.out_features)
 
     def forward(self, x: Inputs, zs: torch.Tensor) -> torch.Tensor:
@@ -106,10 +106,10 @@ class CropActor(nn.Module):
 class CropCritic(nn.Module):
     """mu's twin critic over (sigma, chi, a), extended the same way."""
 
-    def __init__(self, q: nn.Module, pair_hidden: int) -> None:
+    def __init__(self, q: nn.Module, pair_dim: int, pair_hidden: int) -> None:
         super().__init__()
         self.q = trainable_copy(q)
-        self.pairs = PairEncoder(pair_hidden)
+        self.pairs = PairEncoder(pair_dim, pair_hidden)
         self.q01_crop = zero_linear(CROP_EMBED, q.q01.out_features)
         self.q02_crop = zero_linear(CROP_EMBED, q.q02.out_features)
 
@@ -152,17 +152,18 @@ class FineTuneCrop(CropBaseline):
                       crop.pairs.float(), crop.mask)
 
     def _flat(self, obs) -> torch.Tensor:
-        """(B, obs_dim + CROP_CORE + N*(PAIR_DIM+1)) the raw inputs as one buffer row."""
+        """(B, obs_dim + CROP_CORE + N*(pair_dim+1)) the raw inputs as one buffer row."""
         crop = self.build_crop(obs, self._state)
         return torch.cat([self.present(obs, self._state.atom).float(), crop.core.float(),
                           crop.pairs.float().flatten(1), crop.mask.float()], dim=1)
 
     def _unflat(self, flat: torch.Tensor) -> Inputs:
         d = self.obs_dim
-        n = (flat.shape[1] - d - CROP_CORE) // (PAIR_DIM + 1)
-        pairs = flat[:, d + CROP_CORE:d + CROP_CORE + n * PAIR_DIM]
+        pair_dim = self.crop.pair_dim
+        n = (flat.shape[1] - d - CROP_CORE) // (pair_dim + 1)
+        pairs = flat[:, d + CROP_CORE:d + CROP_CORE + n * pair_dim]
         return Inputs(flat[:, :d], self.norm(flat[:, d:d + CROP_CORE]),
-                      pairs.reshape(-1, n, PAIR_DIM), flat[:, -n:] > 0.5)
+                      pairs.reshape(-1, n, pair_dim), flat[:, -n:] > 0.5)
 
     def _zs(self, sigma):
         return self.skill.agent.fixed_encoder.zs(sigma)
@@ -183,8 +184,8 @@ class FineTuneCrop(CropBaseline):
         mu = self.skill.agent
         self.norm = CoreNormalizer().to(self.device)
         hidden = self.cfg.warp_head.pair_hidden
-        self.actor = CropActor(mu.actor, hidden).to(self.device)
-        self.critic = CropCritic(mu.critic, hidden).to(self.device)
+        self.actor = CropActor(mu.actor, self.crop.pair_dim, hidden).to(self.device)
+        self.critic = CropCritic(mu.critic, self.crop.pair_dim, hidden).to(self.device)
         self.actor_target = copy.deepcopy(self.actor)
         self.critic_target = copy.deepcopy(self.critic)
         self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=c.actor_learning_rate)
@@ -262,7 +263,7 @@ class FineTuneCrop(CropBaseline):
     def _collect(self, obs):
         if self._buffer is None:
             self._buffer = LAP(self.obs_dim + CROP_CORE
-                               + obs.active_mask.shape[1] * (PAIR_DIM + 1),
+                               + obs.active_mask.shape[1] * (self.crop.pair_dim + 1),
                                self.action_dim, self.device, max_size=self.cfg.buffer_size,
                                batch_size=self.cfg.batch_size)
         obs, reward, done = self._step_window(obs, None, identity=True)

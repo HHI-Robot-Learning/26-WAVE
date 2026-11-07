@@ -4,13 +4,9 @@ import torch
 
 from wave_rl.td7.agent import TD7Agent, TD7Config
 
-from wave_rl.algorithms.crop import CROP_CORE, PAIR_DIM, pair_floor
+from wave_rl.algorithms.crop import CROP_CORE, pair_floor
 from wave_rl.algorithms.wave.algorithm import WaveAlgorithm
 from wave_rl.algorithms.wave.config import WaveConfig
-
-#: what a flat-state actor reads: the fixed core about the worked object and the robot, plus
-#: the scripted floor of the pair rows over every other object
-STATE_DIM = CROP_CORE + PAIR_DIM
 
 
 @dataclass
@@ -47,7 +43,8 @@ class CropBaseline(WaveAlgorithm):
         super(WaveAlgorithm, self).act_batched(obs)
 
     def _flat_crop(self, obs, state=None) -> torch.Tensor:
-        """(B, STATE_DIM) the crop as one vector: the core, then the scripted pair floor."""
+        """(B, CROP_CORE + pair_dim) what a flat-state actor reads: the core about the worked
+        object and the robot, then the scripted floor of the pair rows over every other object."""
         crop = self.build_crop(obs, self._state if state is None else state)
         return torch.cat([crop.core, pair_floor(crop.pairs, crop.mask)], dim=1)
 
@@ -57,7 +54,7 @@ class CropBaseline(WaveAlgorithm):
         hp = TD7Config(learning_rate=c.learning_rate, batch_size=c.batch_size,
                        buffer_size=c.buffer_size, exploration_noise=c.exploration_noise,
                        value_clip=[-10.0, 30.0])
-        return TD7Agent(state_dim=STATE_DIM, action_dim=action_dim, hp=hp)
+        return TD7Agent(state_dim=CROP_CORE + self.crop.pair_dim, action_dim=action_dim, hp=hp)
 
     def _collect(self, obs):
         """One decision of the training rollout -> the next observation."""
